@@ -1,6 +1,6 @@
 /* IQ Test service worker: cache-first so the app works fully offline.
    BUMP CACHE NAME ON EVERY RELEASE, or installed copies keep the old version. */
-const CACHE = 'iqtest-v3';
+const CACHE = 'iqtest-v4';
 const ASSETS = [
   './',
   './index.html',
@@ -15,10 +15,10 @@ const ASSETS = [
   './js/subtests.js',
   './js/ui.js',
   './js/app.js',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/icon-maskable-512.png',
-  './icons/apple-touch-icon.png',
+  './icons/icon-192-v2.png',
+  './icons/icon-512-v2.png',
+  './icons/icon-maskable-512-v2.png',
+  './icons/apple-touch-icon-v2.png',
 ];
 
 self.addEventListener('install', (e) => {
