@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en" data-theme="navy" data-mode="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>IQ Test</title>
+  <meta name="description" content="An adaptive IQ-style cognitive assessment: Quick Test, Daily Challenge, Practice Gym and friend challenges. Works offline.">
+  <meta name="theme-color" content="#0a1224">
+  <meta name="color-scheme" content="dark light">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="IQ Test">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    // Apply saved theme before first paint to avoid a flash
+    try {
+      var s = JSON.parse(localStorage.getItem('iqtest.v1') || 'null');
+      var st = (s && s.settings) || {};
+      var m = st.mode || 'auto';
+      if (m === 'auto') m = window.matchMedia && !matchMedia('(prefers-color-scheme: dark)').matches ? 'light' : 'dark';
+      document.documentElement.dataset.theme = st.theme || 'navy';
+      document.documentElement.dataset.mode = m;
+    } catch (e) {}
+  </script>
+</head>
+<body>
+  <noscript>IQ Test needs JavaScript turned on.</noscript>
+  <script src="js/core.js"></script>
+  <script src="js/gen-matrix.js"></script>
+  <script src="js/gen-series.js"></script>
+  <script src="js/gen-rotation.js"></script>
+  <script src="js/gen-verbal.js"></script>
+  <script src="js/tasks.js"></script>
+  <script src="js/subtests.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
