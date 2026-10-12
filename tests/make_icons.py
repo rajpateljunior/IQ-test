@@ -43,7 +43,7 @@ with sync_playwright() as p:
     b = p.chromium.launch()
     for name, size, pad in [('icon-512.png', 512, .12), ('icon-192.png', 192, .12), ('apple-touch-icon.png', 180, .12), ('icon-maskable-512.png', 512, .22)]:
         pg = b.new_page(viewport={'width': size, 'height': size})
-        pg.set_content(f'<html><body style="margin:0">{svg(pad).replace("width=\"512\" height=\"512\"", f"width=\"{size}\" height=\"{size}\"")}</body></html>')
+        pg.set_content(f'<html><body style="margin:0;background:#0a1224">{svg(pad).replace("width=\"512\" height=\"512\" viewBox", f"width=\"{size}\" height=\"{size}\" viewBox", 1)}</body></html>')
         pg.screenshot(path=os.path.join(ROOT, name), omit_background=False)
         pg.close()
     b.close()

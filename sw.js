@@ -1,6 +1,6 @@
 /* IQ Test service worker: cache-first so the app works fully offline.
    BUMP CACHE NAME ON EVERY RELEASE, or installed copies keep the old version. */
-const CACHE = 'iqtest-v2';
+const CACHE = 'iqtest-v3';
 const ASSETS = [
   './',
   './index.html',
