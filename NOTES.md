@@ -55,7 +55,7 @@ Challenge link: `#ch=` + base64url `{v:1, s:seed, n:name, subs, f:fse, i:{domain
 - `node tests/gen_check.js` — 3,000+ items per generator: unique, unambiguous answers (every plausible rule checked), deterministic seeds, save-code round trip.
 - `node tests/score_sim.js` — scoring calibration.
 - `python3 -m http.server 8765 --bind 127.0.0.1` then `python3 tests/e2e.py` — bot plays full tests at iPhone/iPhone SE/iPad portrait+landscape/desktop, every Gym skill at L1 and L10, daily, challenge round trip, save import, all 10 theme contrast checks, offline reload.
-- `python3 tests/make_icons.py` regenerates icons.
+- `python3 tests/make_icons.py` regenerates icons (design: glowing lightbulb with "IQ" inside, on deep blue; changed 2026-10-12 from the dot-matrix "?" icon).
 
 ## Known issues / untested
 - **Untested on a real device:** iPhone feel, iOS audio, Home Screen install, offline on iOS, landscape safe areas, share sheet.
