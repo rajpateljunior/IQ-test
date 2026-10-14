@@ -1,7 +1,8 @@
 /* =====================================================================
    IQ Test — app.js
    Boot: load save, apply theme, build the shell, handle challenge
-   links (#ch=...), register the service worker for offline play.
+   links (#ch=...), register the service worker for offline play,
+   start the update check (update.js).
    ===================================================================== */
 'use strict';
 (function () {
@@ -30,6 +31,9 @@
   document.addEventListener('touchstart', unlock, { passive: true });
 
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(() => {}));
   }
+
+  // "New update available" bar + What's New popup (update.js)
+  IQ.updates.start();
 })();

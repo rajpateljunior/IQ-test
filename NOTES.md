@@ -4,7 +4,7 @@ Durable memory for this game. Read before editing.
 
 ## What it is
 An adult (18–60) IQ-style cognitive assessment PWA: serious test with a game feel. Clean, clinical look with colour. Plays on iPhone, iPad and desktop, fully offline, installable to the Home Screen.
-Live: https://rajpateljunior.github.io/iq-test/ · Repo: `rajpateljunior/iq-test`
+Live: https://rajpateljunior.github.io/IQ-test/ (capital I and Q) · Repo: `rajpateljunior/IQ-test`
 
 ## Design decisions (Raj)
 - Name: **IQ Test**. (Lumen rejected.)
@@ -14,7 +14,8 @@ Live: https://rajpateljunior.github.io/iq-test/ · Repo: `rajpateljunior/iq-test
 - Results feel official ("Cognitive Profile Report", Full-Scale Estimate, index scores, 90% range, percentile, classification). One line under the score: "Estimated score, not clinically normed. See How It Works." Full explanation on the How it works tab.
 - Verbal Knowledge is reported separately, outside the Full-Scale Estimate.
 - Speed (PS) and Reflection (CR) are low-weight in the composite.
-- Answer explanations only in the Gym, never after official tests.
+- Answer keys (Raj, 2026-10-14; replaces the earlier "explanations only in the Gym" rule): every Quick Test, Daily Challenge and friend challenge ends with an answer key below the score. Nothing is marked right/wrong during a test. Gym keeps instant explanations after each answer and adds the same key as an end-of-level recap. Format: one card, a collapsible group per part (score + right/wrong squares; open by default for Daily and Gym, closed for 8-part tests), each question a tap-to-expand row that redraws the puzzle, marks your answer and the right one, and shows the explanation.
+- Update bar (Raj, 2026-10-14, copied from Wild Riders): "New update available · Update" on menus only, never mid-test; then a one-time What's New popup. Progress is never touched. No backup-reminder popup (not wanted).
 - Replay hooks: Daily Challenge with streaks, friend challenge links (score + radar overlay), Gym levels/XP/ranks, practice streak, badges.
 - 5 colour themes (Navy default, Graphite, Forest, Plum, Ember) × Auto/Light/Dark. Domain colours fixed across themes. Settings screen.
 - A kids' version may come later as a separate game with its own scale.
@@ -25,9 +26,11 @@ No build step. `index.html` loads plain scripts sharing the global `IQ` namespac
 - `js/gen-matrix.js` — matrix puzzles + shape series + shared cell renderer. `js/gen-series.js` — number/letter series. `js/gen-rotation.js` — 2D/3D mental rotation. `js/gen-verbal.js` — vocabulary bank, quant word problems, reflection questions.
 - `js/tasks.js` — interactive tasks: Digit Span, Corsi Blocks, Symbol Coding, Paired Associates.
 - `js/subtests.js` — registry (`IQ.SUBTESTS`, `IQ.BY_DOMAIN`, quick-test order, icons). **Add Phase 2 subtests here.**
-- `js/ui.js` — all screens and flows (home, test runner, results, daily, challenge, gym, progress, about, settings). `js/app.js` — boot, challenge links, SW registration.
+- `js/ui.js` — all screens and flows (home, test runner, results, daily, challenge, gym, progress, about, settings). `js/app.js` — boot, challenge links, SW registration, starts the update check.
+- `js/review.js` — the answer key card (`IQ.ui.answerKey(parts, {open})` + `IQ.ui.bindAnswerKey(el, parts)`); bodies draw only when a row is opened. MC questions are redrawn with the subtest's own `stem`/`opt` functions.
+- `js/update.js` — `IQ.BUILD`, `IQ.WHATS_NEW`, the update bar (reads `version.json`, which the SW never caches) and the What's New popup (shown once per build to players with any history; never on a fresh install; seen build in localStorage `iqtest.version`).
 - `styles.css` — theme tokens at top (`html[data-theme][data-mode]`), then components, then responsive rules (phone landscape puts question left, answers right).
-- `sw.js` cache-first; **bump `CACHE` every release** and add any new file to `ASSETS`.
+- `sw.js` cache-first, serves only from the current release's cache. **Every release: run `python3 tools/release.py <build>`** (e.g. `2026.10.15a`), which stamps the same build into `IQ.BUILD`, `version.json`, the SW `CACHE` name and the `?v=` on every file in `index.html`; then edit `IQ.WHATS_NEW`. Add any new file to `ASSETS` and to `index.html`. `node tests/version_check.js` fails if anything disagrees.
 - Fonts: system font stack (SF Pro on Apple devices), so nothing to host and it works offline.
 
 ## Scoring model (speculative calibration, not normed)
@@ -51,14 +54,21 @@ localStorage key `iqtest.v1`. Save code = `IQT1-` + base64url(JSON). Fields: `se
 Loading deep-merges onto defaults, so new optional fields are backward compatible. Never rename/remove fields; bump `SAVE_VERSION` only for breaking changes and migrate in `normalizeState`.
 Challenge link: `#ch=` + base64url `{v:1, s:seed, n:name, subs, f:fse, i:{domain:score}}`.
 
+## Answer key data (not part of the save)
+localStorage key `iqtest.review.v1` = `{test:{recordId:{ts,parts}}, daily:{date:{ts,parts}}}`, newest 30 tests / 60 dailies; oldest dropped first if storage fills. `parts = [{sub, items:[entry]}]`. Entry types: `mc {it: generated question, ch, to}`, `span {dir, seq, typed}`, `corsi {seq, taps}`, `pair {g, w, ch, k}`, `coding {glyphs, correct, errors, net, perMin, dur, target, miss}`. Each run function returns `review` alongside `log`. Not in the save code (keeps codes short): moving devices carries scores but not old keys. Deleting a result deletes its key; Reset clears all keys. Results from before 2026-10-14 show a "no answer key saved" note.
+
 ## Tests (run before every push)
 - `node tests/gen_check.js` — 3,000+ items per generator: unique, unambiguous answers (every plausible rule checked), deterministic seeds, save-code round trip.
 - `node tests/score_sim.js` — scoring calibration.
+- `node tests/version_check.js` — build name matches in all four places; every file index.html loads is cached by the SW.
 - `python3 -m http.server 8765 --bind 127.0.0.1` then `python3 tests/e2e.py` — bot plays full tests at iPhone/iPhone SE/iPad portrait+landscape/desktop, every Gym skill at L1 and L10, daily, challenge round trip, save import, all 10 theme contrast checks, offline reload.
+- `python3 tests/review_e2e.py` (same server) — answer key after Quick Test at all 6 sizes (every row opened, count matches the record, no sideways overflow), Daily, friend challenge, every Gym recap, reload persistence, delete, old-result note, light theme; update bar shows only for a newer build and never mid-test, Update keeps progress, offline check is silent; What's New once for existing players, never for new ones.
 - `python3 tests/make_icons.py` regenerates icons (design: glowing lightbulb with "IQ" inside, on deep blue; changed 2026-10-12 from the dot-matrix "?" icon).
 
 ## Known issues / untested
-- **Untested on a real device:** iPhone feel, iOS audio, Home Screen install, offline on iOS, landscape safe areas, share sheet.
+- **Untested on a real device:** iPhone feel, iOS audio, Home Screen install, offline on iOS, landscape safe areas, share sheet, the update bar + Update button in the installed Home Screen app.
+- Existing installs (before build 2026.10.14a) don't have the update bar yet, so they pick up this release the old way: close the Home Screen app fully and reopen it twice. From then on the bar works.
+- The e2e bot (`autoplay.js`) can occasionally click past a screen because it peeks and steps in two calls; `review_e2e.py` peeks+steps in one call. Two pre-existing fit issues fixed 2026-10-14: desktop 1280×800 matrix screen needed 9 px of scroll (grid trimmed 46dvh → 44dvh); phone-landscape shape series needed 14 px (answer tiles capped by screen height).
 - Timed parts keep running if the app is backgrounded mid-question (Symbol Coding pauses; others don't). A test in progress is lost if iOS closes the app.
 - Score scale is modelled, not normed. Speed norms are a guess for touch screens.
 - Adaptive tests mean friends see the same puzzles only while they answer the same way.
@@ -67,4 +77,5 @@ Challenge link: `#ch=` + base64url `{v:1, s:seed, n:name, subs, f:fse, i:{domain
 ## Ideas / Phase 2
 - Full Test (16 parts) with two subtests per domain.
 - Remaining 27 subtests: odd-one-out, analogies, syllogisms, figure weights, rule discovery (WCST), Tower of London; block design, paper folding, hidden figures, assembly, cube counting; letter-number sequencing, n-back, mental arithmetic span; symbol search, cancellation, trail making, reaction time, Stroop; similarities, general knowledge, comprehension; estimation/number sense; story recall; insight riddles, remote associates, Wonderlic-style mixed speed round.
-- Optional spoken digits for Digit Span; per-item review after tests (opt-in, marked as affecting retest accuracy).
+- Optional spoken digits for Digit Span.
+- Answer key ideas not done: "Missed only" filter; carry keys in the save code.

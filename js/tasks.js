@@ -4,7 +4,13 @@
      Digit Span (forward + backward), Corsi Blocks, Symbol Coding,
      Paired Associates.
    Each task is async run(ctx) and resolves to
-     { responses: [...IRT responses], log: [1,0,...], correct, total, detail }
+     { responses: [...IRT responses], log: [1,0,...], correct, total, detail, review }
+   review is the answer-key list for that task (shown after tests and
+   Gym levels; stored by IQ.review in core.js):
+     span   { t, dir:'f'|'b', seq:[shown digits], typed:[digits] }
+     corsi  { t, seq:[block order], taps:[blocks tapped] }
+     pair   { t, g:[glyph strokes], w:correct word, ch:chosen word, k:pairs learned }
+     coding { t, glyphs:[9 glyph strokes], correct, errors, net, perMin, dur, target, miss:[[symbolIdx, pressed]] }
    ctx (built in ui.js) gives: host, mode, n, level, feedback, rng(tag),
      progress(i, n), check() (throws if the user quit), wait(ms).
 
@@ -50,7 +56,7 @@
   /* -------------------------- Digit Span -------------------------- */
   IQ.tasks.digitspan = async function (ctx) {
     const host = ctx.host;
-    const responses = [], log = [];
+    const responses = [], log = [], review = [];
     let blocks;
     if (ctx.mode === 'practice') blocks = [{ dir: 'f', n: 1, fixed: 3 }, { dir: 'b', n: 1, fixed: 3 }];
     else if (ctx.mode === 'gym') blocks = [{ dir: 'f', n: 3, fixed: Math.min(12, ctx.level + 3) }, { dir: 'b', n: 3, fixed: Math.min(11, ctx.level + 2) }];
@@ -74,14 +80,15 @@
         const len = blk.fixed || nextLen(resp, NORM[blk.dir], blk.dir === 'f' ? 5 : 4, prev, 2, 10);
         prev = len;
         const seq = digitsSeq(ctx.rng(`ds|${blk.dir}|${t}|${len}`), len);
-        const ok = await spanTrial(ctx, seq, blk.dir);
+        const tr = await spanTrial(ctx, seq, blk.dir), ok = tr.ok;
+        review.push({ t: 'span', dir: blk.dir, seq, typed: tr.typed });
         const it = { a: 1.5, b: (len - NORM[blk.dir][0]) / NORM[blk.dir][1], c: 0, x: ok ? 1 : 0 };
         resp.push(it); responses.push(it); log.push(ok ? 1 : 0);
         done++;
       }
     }
     ctx.progress(total, total);
-    return { responses, log, correct: log.reduce((a, b) => a + b, 0), total: log.length };
+    return { responses, log, correct: log.reduce((a, b) => a + b, 0), total: log.length, review };
   };
 
   async function spanTrial(ctx, seq, dir) {
@@ -140,15 +147,16 @@
       IQ.audio.play(ok ? 'correct' : 'wrong');
       await ctx.wait(ok ? 900 : 1900);
     } else await ctx.wait(250);
-    return ok;
+    return { ok, typed: typed.slice() };
   }
 
   /* -------------------------- Corsi Blocks -------------------------- */
   // Fixed, irregular 9-block layout (percent of board), like the original board
   const CORSI_POS = [[10, 66], [28, 10], [40, 46], [62, 26], [80, 6], [80, 50], [56, 74], [8, 30], [80, 82]];
+  IQ.tasks.CORSI_POS = CORSI_POS; // the answer key draws mini boards with the same layout
   IQ.tasks.corsi = async function (ctx) {
     const host = ctx.host;
-    const responses = [], log = [];
+    const responses = [], log = [], review = [];
     const n = ctx.mode === 'practice' ? 1 : ctx.mode === 'gym' ? 6 : ctx.mode === 'daily' ? 4 : ctx.n || 6;
     let prev = 4;
     for (let t = 0; t < n; t++) {
@@ -158,12 +166,13 @@
       prev = len;
       const rng = ctx.rng(`corsi|${t}|${len}`);
       const seq = rng.shuffle([0, 1, 2, 3, 4, 5, 6, 7, 8]).slice(0, len);
-      const ok = await corsiTrial(ctx, seq);
+      const tr = await corsiTrial(ctx, seq), ok = tr.ok;
+      review.push({ t: 'corsi', seq, taps: tr.taps });
       const it = { a: 1.4, b: (len - NORM.corsi[0]) / NORM.corsi[1], c: 0, x: ok ? 1 : 0 };
       responses.push(it); log.push(ok ? 1 : 0);
     }
     ctx.progress(n, n);
-    return { responses, log, correct: log.reduce((a, b) => a + b, 0), total: n };
+    return { responses, log, correct: log.reduce((a, b) => a + b, 0), total: n, review };
   };
   async function corsiTrial(ctx, seq) {
     const host = ctx.host;
@@ -214,7 +223,7 @@
         await ctx.wait(900);
       } else await ctx.wait(800);
     } else await ctx.wait(250);
-    return ok;
+    return { ok, taps: taps.slice() };
   }
 
   /* -------------------------- Symbol Coding -------------------------- */
@@ -237,6 +246,7 @@
       ${practice ? '' : '<button class="btn primary wide startbtn" data-go>Start</button>'}`;
     const stim = $('.code-stim', host), status = $('.code-status', host), pad = $('.keypad', host), bar = $('.timerbar i', host);
     let cur = -1, correct = 0, errors = 0, shown = 0;
+    const miss = []; // [symbol index, number pressed] for the answer key (first 8 mistakes)
     const next = () => {
       let k;
       do { k = rng.int(0, 8); } while (k === cur);
@@ -270,7 +280,7 @@
       const vis = () => { paused = document.hidden; last = performance.now(); };
       const press = (k) => {
         const good = k === cur + 1;
-        if (good) correct++; else errors++;
+        if (good) correct++; else { errors++; if (miss.length < 8) miss.push([cur, k]); }
         const b = pad.querySelector(`[data-k="${k}"]`);
         if (b) { b.classList.add(good ? 'hit' : 'miss'); setTimeout(() => b.classList.remove('hit', 'miss'), 160); }
         if (practice) {
@@ -301,7 +311,8 @@
     await ctx.wait(1300);
     // gym pass/fail uses a single "item"
     const log = target ? [net >= target ? 1 : 0] : [1];
-    return { responses: [{ mu, se: 0.45 }], log, correct, total: correct + errors, detail: { net, errors, perMin: Math.round(perMin), target } };
+    const review = [{ t: 'coding', glyphs: glyphs.map((g) => g.strokes), correct, errors, net, perMin: Math.round(perMin), dur, target, miss }];
+    return { responses: [{ mu, se: 0.45 }], log, correct, total: correct + errors, detail: { net, errors, perMin: Math.round(perMin), target }, review };
   };
 
   /* -------------------------- Paired Associates -------------------------- */
@@ -309,7 +320,7 @@
     'pillow', 'rocket', 'violin', 'anchor', 'basket', 'castle', 'feather', 'hammer', 'island', 'jacket', 'kettle', 'lemon'];
   const pairB = (k) => -1.6 + 0.38 * (k - 4);
   IQ.tasks.paired = async function (ctx) {
-    const responses = [], log = [];
+    const responses = [], log = [], review = [];
     let rounds;
     if (ctx.mode === 'practice') rounds = [3];
     else if (ctx.mode === 'gym') rounds = [Math.min(12, ctx.level + 3)];
@@ -372,10 +383,11 @@
         } else await ctx.wait(180);
         const it = { a: 1.0, b: pairB(k), c: 1 / k, x: ok ? 1 : 0 };
         responses.push(it); log.push(ok ? 1 : 0);
+        review.push({ t: 'pair', g: p.g.strokes, w: p.w, ch: choice.dataset.w, k });
         done++;
       }
     }
     ctx.progress(totalItems, totalItems);
-    return { responses, log, correct: log.reduce((a, b) => a + b, 0), total: log.length };
+    return { responses, log, correct: log.reduce((a, b) => a + b, 0), total: log.length, review };
   };
 })();

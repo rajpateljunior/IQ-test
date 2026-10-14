@@ -287,6 +287,48 @@ var IQ = (window.IQ = window.IQ || {});
     try { localStorage.setItem(KEY, JSON.stringify(IQ.state)); } catch (e) { /* storage full or blocked */ }
   };
 
+  /* ---------------------------------------------------------------
+     Answer keys (added 2026-10). Kept in their OWN localStorage key,
+     not in the save above, so save codes stay short and the save
+     format is unchanged. Each key is a list of parts:
+       [{ sub: subtestId, items: [entry, ...] }, ...]
+     entry.t says what it is: 'mc' (multiple choice: it = the generated
+     question, ch = choice index or -1, to = timed out), 'span', 'corsi',
+     'pair', 'coding' (see tasks.js). Tests keep their newest 30 keys,
+     Daily Challenges their newest 60 days. If storage fills up, the
+     oldest keys are dropped first. Losing a key never affects scores.
+     --------------------------------------------------------------- */
+  const RKEY = 'iqtest.review.v1';
+  const RCAP = { test: 30, daily: 60 };
+  IQ.review = {
+    _read() {
+      try { const r = JSON.parse(localStorage.getItem(RKEY) || 'null'); if (r && r.test && r.daily) return r; } catch (e) { /* ignore */ }
+      return { test: {}, daily: {} };
+    },
+    _write(r) {
+      for (let tries = 0; tries < 100; tries++) {
+        try { localStorage.setItem(RKEY, JSON.stringify(r)); return true; } catch (e) {
+          // storage full: drop the oldest key (tests first, they are bigger) and try again
+          const tk = Object.keys(r.test).sort((a, b) => r.test[a].ts - r.test[b].ts), dk = Object.keys(r.daily).sort();
+          if (tk.length > 1) delete r.test[tk[0]];
+          else if (dk.length > 1) delete r.daily[dk[0]];
+          else return false;
+        }
+      }
+      return false;
+    },
+    put(kind, id, parts) {
+      const r = this._read();
+      r[kind][id] = { ts: Date.now(), parts };
+      const keys = Object.keys(r[kind]).sort((a, b) => r[kind][a].ts - r[kind][b].ts);
+      while (keys.length > RCAP[kind]) delete r[kind][keys.shift()];
+      return this._write(r);
+    },
+    get(kind, id) { const x = this._read()[kind][id]; return x ? x.parts : null; },
+    del(kind, id) { const r = this._read(); delete r[kind][id]; this._write(r); },
+    clear() { try { localStorage.removeItem(RKEY); } catch (e) { /* ignore */ } },
+  };
+
   /* base64url of UTF-8 JSON */
   function b64e(str) {
     const bytes = new TextEncoder().encode(str);

@@ -211,7 +211,7 @@ body.running .app { display: none; }
 .explain p { margin: 0 0 4px; font-size: 14.5px; color: var(--text); }
 
 /* matrix */
-.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 8px; width: min(100%, 46dvh, 460px); aspect-ratio: 1; background: var(--surf); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 8px; width: min(100%, 44dvh, 460px); aspect-ratio: 1; background: var(--surf); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); }
 .mcell { background: var(--surf2); border-radius: 10px; display: grid; place-items: center; overflow: hidden; }
 .mcell svg, .sq svg { width: 100%; height: 100%; }
 .mcell.missing, .sq.missing { border: 2px dashed var(--primary); background: color-mix(in srgb, var(--primary) 8%, transparent); }
@@ -518,4 +518,135 @@ body.running #toast { top: auto; bottom: calc(14px + var(--sb)); }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* =====================================================================
+   Answer key (review.js). Kept at the end so it wins over the
+   test-screen rules above when a puzzle is redrawn inside a card.
+   ===================================================================== */
+.akey { text-align: left; padding: 16px 14px; }
+.akhead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.akhead h3 { margin: 0; }
+.akscore { color: var(--muted); font-size: 14px; white-space: nowrap; }
+.akscore b { color: var(--text); font-size: 17px; font-variant-numeric: tabular-nums; }
+.akey > .cap { margin: 4px 0 10px; }
+.akey details > summary { list-style: none; cursor: pointer; -webkit-user-select: none; user-select: none; }
+.akey details > summary::-webkit-details-marker { display: none; }
+.akc { width: 9px; height: 9px; flex: none; margin-left: 2px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(-45deg); transition: transform .15s; }
+.akey details[open] > summary .akc { transform: rotate(45deg) translate(-2px, -2px); }
+/* part (subtest) group */
+.akgroup { border-top: 1px solid var(--line); }
+.akgroup > summary { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 6px 2px; }
+.akgroup > summary .ddot { background: var(--c); }
+.akgroup > summary b { flex: 1; min-width: 0; font-size: 15px; }
+.akgroup > summary .sq { display: flex; flex-wrap: wrap; gap: 3px; justify-content: flex-end; max-width: 42%; }
+.akgroup > summary .sq i { width: 11px; height: 11px; border-radius: 3px; background: var(--line); }
+.akgroup > summary .sq i.y { background: var(--ok); }
+.akgroup > summary .sq i.n { background: color-mix(in srgb, var(--bad) 70%, var(--line)); }
+.akgs { font-weight: 700; font-variant-numeric: tabular-nums; min-width: 40px; text-align: right; font-size: 14px; }
+.akitems { padding: 0 0 10px; display: grid; gap: 6px; }
+/* one question */
+.akq { border: 1px solid var(--line); border-radius: 14px; background: var(--surf2); overflow: hidden; }
+.akq > summary { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 8px 12px 8px 10px; }
+.akm { width: 26px; height: 26px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 14px; font-weight: 800; }
+.akq.ok .akm { color: var(--ok); background: color-mix(in srgb, var(--ok) 16%, transparent); }
+.akq.no .akm { color: var(--bad); background: color-mix(in srgb, var(--bad) 16%, transparent); }
+.akq.info .akm { color: var(--primary); background: color-mix(in srgb, var(--primary) 14%, transparent); font-style: italic; font-family: Georgia, serif; }
+.akn { font-size: 12.5px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 22px; }
+.akq.info .akn { display: none; }
+.akl { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
+.akl b { font-weight: 700; }
+.akg { display: inline-grid; color: var(--d-LM); flex: none; }
+.aktag { font-size: 11.5px; font-weight: 650; color: var(--muted); white-space: nowrap; }
+.akbody { padding: 4px 12px 14px; display: grid; gap: 12px; border-top: 1px solid var(--line); background: var(--surf); }
+.akbody:empty { display: none; }
+.akbody .explain { margin: 0; }
+.akbody .explain p { font-size: 14.5px; }
+.rvans { color: var(--muted) !important; }
+.rvans b { display: inline !important; margin: 0 !important; color: var(--text); }
+.explain .rvans b.good { color: var(--ok); } .explain .rvans b.bad { color: var(--bad); }
+/* the redrawn puzzle, sized down for a card */
+.rv-stem { display: flex; justify-content: center; padding-top: 10px; }
+.rv-stem .stem { display: flex; justify-content: center; width: 100%; }
+.akey .rv-stem .grid3 { width: min(100%, 280px); gap: 5px; padding: 6px; border-radius: 14px; box-shadow: none; }
+.akey .rv-stem .target { width: min(46%, 170px); box-shadow: none; }
+.akey .rv-stem .seqrow { padding: 14px 8px; box-shadow: none; }
+.akey .rv-stem .seqrow .term { font-size: clamp(14px, 4.2vw, 20px); padding: 8px 2px; }
+.akey .rv-stem .qtext { padding: 14px; box-shadow: none; }
+.akey .rv-stem .qword { font-size: 28px; }
+.akey .rv-stem .qpara { font-size: 16px; }
+.akey .rv-opts { gap: 7px; max-width: 520px; margin: 0 auto; }
+.akey .rv-opts.c1 { grid-template-columns: 1fr; }
+.akey .rv-opts .opt { position: relative; cursor: default; }
+.akey .rv-opts .opt:active { transform: none; }
+.akey .rv-opts .opt.txt { padding: 9px 12px; min-height: 0; font-size: 15px; }
+.akey .rv-opts .opt.txt.num { font-size: 19px; }
+.akey .rv-opts .opt.dim { opacity: .72; }
+.akey .lay-matrix + .rv-opts, .akey .figseq + .rv-opts { max-width: 400px; }
+.akey .lay-fig + .rv-opts { max-width: 420px; grid-template-columns: repeat(2, 1fr); }
+@media (min-width: 560px) { .akey .lay-fig + .rv-opts { max-width: 520px; grid-template-columns: repeat(4, 1fr); } }
+.akey .rv-opts .opt.fig .rvflag { top: 4px; bottom: auto; right: 4px; }
+.rvl { position: absolute; top: 4px; left: 5px; font-size: 11px; font-weight: 750; color: var(--muted); line-height: 1; }
+.rvflag { position: absolute; right: 4px; bottom: 4px; font-size: 10.5px; font-weight: 750; padding: 2px 6px; border-radius: 99px; line-height: 1.3; }
+.opt.txt .rvflag { position: static; margin-left: auto; flex: none; }
+.rvflag.ok { background: var(--ok); color: var(--surf); }
+.rvflag.no { background: var(--bad); color: #fff; }
+/* digit span, pairs */
+.rvgrid { display: grid; gap: 8px; padding-top: 10px; }
+.rvline { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; border-bottom: 1px dashed var(--line); padding-bottom: 6px; }
+.rvline:last-child { border-bottom: 0; }
+.digs { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 19px; font-weight: 700; letter-spacing: .06em; text-align: right; }
+.digs i { font-style: normal; padding: 0 1px; }
+.digs i.y, .good { color: var(--ok); }
+.digs i.n, .bad { color: var(--bad); }
+.rvpair { display: flex; align-items: center; gap: 14px; }
+.rvpair .pa-stim { width: 96px; height: 96px; flex: none; margin: 10px 0 0; border-radius: 22px; }
+.rvpair .rvgrid { flex: 1; }
+.pw { font-size: 17px; font-weight: 700; }
+/* corsi mini boards */
+.mboards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 10px; }
+.mboards small { text-align: center; margin-bottom: 4px; }
+.mboard { position: relative; aspect-ratio: 1; background: var(--surf2); border: 1px solid var(--line); border-radius: 14px; }
+.mblk { position: absolute; width: 16%; aspect-ratio: 1; border-radius: 22%; background: color-mix(in srgb, var(--d-WM) 18%, var(--surf)); display: grid; place-items: center; font-size: 11px; font-weight: 800; color: var(--on-primary); }
+.mblk.on { background: var(--d-WM); color: #1b1300; }
+.mblk.on.good { background: var(--ok); color: #fff; }
+.mblk.on.bad { background: var(--bad); color: #fff; }
+/* symbol coding */
+.akey .rvkey { display: grid; grid-template-columns: repeat(9, 1fr); gap: 3px; margin-top: 10px; padding: 5px; background: var(--surf2); border: 1px solid var(--line); border-radius: 12px; }
+.akey .rvkey .kcell { background: var(--surf); padding: 4px 0; }
+.rvstats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; font-size: 12px; color: var(--muted); }
+.rvstats b { display: block; font-size: 20px; color: var(--text); font-variant-numeric: tabular-nums; }
+.rvmiss { display: grid; gap: 6px; }
+.rvmiss span { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.rvmiss svg { color: var(--text); }
+.rvmiss b { font-size: 16px; }
+.rvmiss i { font-style: normal; }
+/* Gym level-complete screen with a recap below: scroll from the top */
+.runbody.center.tall { justify-content: flex-start; }
+.runbody.tall .taskcard { max-width: 560px; padding-top: 12px; }
+.runbody.tall .akey { margin-top: 8px; }
+
+/* =====================================================================
+   Update bar + What's New (update.js)
+   ===================================================================== */
+#upd { position: fixed; z-index: 25; left: 50%; bottom: calc(var(--tab-h) + 12px + var(--sb)); transform: translate(-50%, 20px); width: min(calc(100% - 24px), 440px);
+  display: none; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 8px 8px 14px; border-radius: 18px;
+  background: var(--surf); border: 1.5px solid var(--primary); box-shadow: 0 16px 40px -14px rgba(0,0,0,.55); opacity: 0; transition: opacity .2s, transform .2s; }
+#upd.show { display: flex; opacity: 1; transform: translate(-50%, 0); animation: up .25s ease; }
+#upd span { display: flex; align-items: center; gap: 8px; font-size: 15px; min-width: 0; }
+#upd span svg { color: var(--primary); flex: none; }
+#upd .btn { min-height: 44px; padding: 8px 18px; flex: none; }
+body.running #upd { display: none; }
+.wn { margin: 6px 0 10px; padding-left: 18px; display: grid; gap: 8px; font-size: 14.5px; }
+.wn b { color: var(--primary); }
+/* Phone landscape: puzzle on the left, answers + explanation on the right, so a question fits on one screen */
+@media (orientation: landscape) and (max-height: 620px) {
+  .akey .akbody:has(.rv-stem) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "s o" "s e"; align-items: start; }
+  .akey .akbody:has(.rv-stem) .rv-stem { grid-area: s; }
+  .akey .akbody:has(.rv-stem) .rv-opts { grid-area: o; padding-top: 10px; }
+  .akey .akbody:has(.rv-stem) .explain { grid-area: e; }
+}
+/* Phone landscape: shape-series answer tiles were ~14px too tall to show Confirm without scrolling */
+@media (orientation: landscape) and (max-height: 620px) {
+  .runbody.mc.figseq .opts { width: min(100%, calc((100dvh - 150px - var(--st) - var(--sb)) * 1.5)); justify-self: center; }
 }

@@ -309,7 +309,7 @@
     document.removeEventListener('keydown', k);
   }
   async function runMC(mod, ctx) {
-    const responses = [], log = [];
+    const responses = [], log = [], review = [];
     const n = ctx.n || mod.testN;
     const avoid = new Set(mod.id === 'vocab' ? S().vocabSeen : []);
     for (let i = 0; i < n; i++) {
@@ -326,13 +326,15 @@
       const x = ans.choice === item.answer ? 1 : 0;
       responses.push({ a: item.a, b: item.b, c: item.c, x });
       log.push(x);
+      const keep = Object.assign({}, item); delete keep._span; // _span is recomputed when drawn
+      review.push({ t: 'mc', it: keep, ch: ans.choice, to: !!ans.timedOut });
       if (ctx.feedback) await mcFeedback(item, ans, ctx);
     }
     if (mod.id === 'vocab' && ctx.mode !== 'practice') {
       S().vocabSeen = [...avoid].slice(-80);
     }
     ctx.progress(n, n);
-    return { responses, log, correct: log.reduce((a, b) => a + b, 0), total: n };
+    return { responses, log, correct: log.reduce((a, b) => a + b, 0), total: n, review };
   }
   const runSub = (mod, ctx) => (mod.kind === 'mc' ? runMC(mod, ctx) : mod.run(ctx));
 
@@ -374,7 +376,7 @@
           await race(runSub(mod, makeCtx({ mode: 'practice', seed: IQ.newSeed(), subId: id, n: 1, feedback: true })));
           S().seen[id] = true; IQ.save();
           const c = screenCard(`<div class="bigicon" style="color:${dc(mod.domain)}">${IQ.icon(mod.icon, 44)}</div><h2>Ready for the real thing?</h2>
-            <p>From here on answers count, and you won’t see whether they’re right.</p><button class="btn primary wide" data-go>Start ${esc(mod.name)}</button>`);
+            <p>From here on answers count. You’ll see the full answer key when you finish.</p><button class="btn primary wide" data-go>Start ${esc(mod.name)}</button>`);
           await race(onceBtn($('[data-go]', c)));
           runbar({ part });
         }
@@ -415,6 +417,7 @@
         <li>${icon('calendar', 18)}<span>Takes ${mins}. Find a quiet spot.</span></li>
         <li>${IQ.icon('calc', 18)}<span>No pen, paper or calculator.</span></li>
         <li>${icon('sparkle', 18)}<span>Questions adapt to you, so some will feel hard. That’s expected.</span></li>
+        <li>${icon('check', 18)}<span>No right or wrong shown until the end. Then you get an answer key with explanations.</span></li>
       </ul>
       <button class="btn primary wide big" data-go>Begin</button>`);
     return race(onceBtn($('[data-go]', c)));
@@ -462,9 +465,12 @@
     return { id: IQ.uid(), ts: Date.now(), mode: cfg.mode, seed: cfg.seed, subs: cfg.subs, fse, idx,
       vs: cfg.challenge ? { n: cfg.challenge.n || 'Friend', f: cfg.challenge.f, i: cfg.challenge.i || {} } : null };
   }
+  // Answer key for a finished test: one part per subtest, in the order played
+  const keyParts = (cfg, results) => cfg.subs.filter((id) => results[id]).map((id) => ({ sub: id, items: results[id].review || [] }));
   function finishTest(cfg, results) {
     const rec = buildRecord(cfg, results);
     const s = S();
+    IQ.review.put(cfg.mode === 'daily' ? 'daily' : 'test', cfg.mode === 'daily' ? cfg.date : rec.id, keyParts(cfg, results));
     bump(s.practice);
     if (cfg.mode === 'daily') {
       s.daily.log[cfg.date] = { score: rec.fse.score, subs: rec.subs, idx: Object.fromEntries(Object.entries(rec.idx).map(([d, v]) => [d, { score: v.score, log: v.log }])) };
@@ -501,6 +507,7 @@
       }
       const ctx = makeCtx({ mode: 'gym', seed: IQ.newSeed(), subId: id, level, n: mod.gymN || 6, feedback: true });
       const r = await race(runSub(mod, ctx));
+      const gymParts = [{ sub: id, items: r.review || [] }]; // end-of-level recap (not stored)
       const g = ui.gymRec(id);
       const acc = r.log.length ? r.log.reduce((a, b) => a + b, 0) / r.log.length : 0;
       const pass = id === 'coding' ? r.log[0] === 1 : acc >= 0.66;
@@ -528,7 +535,9 @@
           ${pass && level < 10 ? `<button class="btn primary wide" data-a="next">Play level ${level + 1}</button>` : ''}
           <button class="btn ${pass && level < 10 ? 'ghost' : 'primary'} wide" data-a="again">Play level ${level} again</button>
           <button class="btn link" data-a="back">Back to Gym</button>
-        </div>`);
+        </div>
+        ${ui.answerKey(gymParts, { open: true })}`, 'tall');
+      ui.bindAnswerKey(c, gymParts);
       const a = await race(new Promise((res) => $$('[data-a]', c).forEach((b) => b.addEventListener('click', () => { IQ.audio.play('tap'); res(b.dataset.a); }))));
       exitRun(); RUN = null;
       if (a === 'next') return ui.startGym(id, level + 1);
@@ -625,7 +634,7 @@
       <div class="row2"><button class="btn ghost" data-act="challenge">${icon('share', 18)} Challenge a friend</button><button class="btn ghost" data-nav="progress">${icon('history', 18)} All results</button></div>` : ''}
 
       <section class="card gymteaser" data-nav="gym">
-        <div><div class="eyebrow">Practice Gym</div><b>10 skills · 10 levels each</b><small>Explanations after every answer. Practice doesn’t change your test scores.</small></div>
+        <div><div class="eyebrow">Practice Gym</div><b>10 skills · 10 levels each</b><small>Explanations after every answer, plus a recap at the end. Practice doesn’t change your test scores.</small></div>
         <span class="chev">${icon('chevron')}</span>
       </section>
 
@@ -703,6 +712,7 @@
         </section>
         ${vk ? `<section class="card"><h3>Verbal Knowledge Index</h3><p class="cap">Reported separately because word knowledge depends on language and schooling.</p>${row('VK')}</section>` : ''}
         <section class="card strengths">${strengths(rec)}</section>
+        ${ui.answerKey(SCREENS.result._parts = IQ.review.get('test', rec.id))}
         <div class="stack">
           <button class="btn primary wide" data-act="challenge">${icon('share', 18)} Challenge a friend</button>
           <button class="btn ghost wide" data-nav="gym">Practise in the Gym</button>
@@ -711,13 +721,14 @@
       </div>`;
     },
     bind(v) {
+      ui.bindAnswerKey(v, SCREENS.result._parts);
       v.onclick = async (e) => {
         const a = e.target.closest('[data-act]');
         if (!a) return;
         const rec = SCREENS.result._rec;
         if (a.dataset.act === 'challenge') ui.sendChallenge(rec);
         if (a.dataset.act === 'del' && (await ui.confirm('Delete result?', 'This removes it from your history on this device.', 'Delete', true))) {
-          S().history = S().history.filter((h) => h.id !== rec.id); IQ.save(); ui.go('progress');
+          S().history = S().history.filter((h) => h.id !== rec.id); IQ.save(); IQ.review.del('test', rec.id); ui.go('progress');
         }
       };
     },
@@ -755,11 +766,13 @@
           ${d.subs.map((id) => { const m = IQ.SUBTESTS[id]; const v = d.idx[m.domain]; return `<div class="drow"><i class="ddot" style="background:${dc(m.domain)}"></i><b>${esc(m.name)}</b><span class="sq">${(v.log || []).map((x) => `<i class="${x ? 'y' : 'n'}"></i>`).join('')}</span><span class="dscore">${v.score}</span></div>`; }).join('')}
           <p class="cap">Three short parts give a rough score. The Quick Test is more accurate.</p>
         </section>
+        ${ui.answerKey(SCREENS.daily._parts = IQ.review.get('daily', date), { open: true })}
         <div class="stack"><button class="btn primary wide" data-act="share">${icon('share', 18)} Share result</button><button class="btn ghost wide" data-nav="home">Done</button></div>
       </div>`;
     },
     bind(v, date) {
       date = date || IQ.today();
+      ui.bindAnswerKey(v, SCREENS.daily._parts);
       v.onclick = (e) => {
         const a = e.target.closest('[data-act="share"]');
         if (!a) return;
@@ -910,10 +923,14 @@
           <li><b>Practice doesn’t make you smarter.</b> Gym levels improve with practice, but research finds little evidence that brain training raises general intelligence. Enjoy it as training for these specific skills.</li>
         </ul>
       </section>
+      <section class="card"><h3>Answer keys</h3>
+        <p>Every test, Daily Challenge and Gym level ends with an answer key: each question with your answer, the right answer and a short explanation. During a test you never see whether you were right, so later questions aren’t affected.</p>
+        <p class="cap">Looking at answers doesn’t spoil future tests much, because puzzles are generated fresh each time (vocabulary words can repeat). Keys stay on this device and aren’t part of the save code.</p>
+      </section>
       <section class="card"><h3>Your data</h3>
         <p>Everything stays on this device. There are no accounts and nothing is sent anywhere. Challenge links carry only your name, your scores and the test’s puzzle seed. To move to another device, use the save code in Settings.</p>
       </section>
-      <p class="cap center">IQ Test · Phase 1 · save format v${IQ.SAVE_VERSION}</p>`;
+      <p class="cap center">IQ Test · version ${IQ.BUILD || ''} · save format v${IQ.SAVE_VERSION}</p>`;
     },
   };
 
@@ -959,8 +976,8 @@
             try { IQ.state = IQ.importCode(code); IQ.save(); IQ.applyTheme(); ui.toast('Progress loaded'); ui.go('home'); } catch (er) { ui.toast(esc(er.message), 'bad'); }
           }
         }
-        if (a.dataset.act === 'reset' && (await ui.confirm('Reset everything?', 'Deletes all results, Gym progress, streaks and badges on this device. This cannot be undone.', 'Reset', true))) {
-          IQ.state = IQ.defaultState(); IQ.save(); IQ.applyTheme(); ui.toast('All data reset'); ui.go('home');
+        if (a.dataset.act === 'reset' && (await ui.confirm('Reset everything?', 'Deletes all results, answer keys, Gym progress, streaks and badges on this device. This cannot be undone.', 'Reset', true))) {
+          IQ.state = IQ.defaultState(); IQ.save(); IQ.review.clear(); IQ.applyTheme(); ui.toast('All data reset'); ui.go('home');
         }
       };
       $('[data-sound]', v).onchange = (e) => { S().settings.sound = e.target.checked; IQ.save(); IQ.audio.unlock(); IQ.audio.play('confirm'); };
